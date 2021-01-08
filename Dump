@@ -1,0 +1,116 @@
+First one
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job; import org.apache.hadoop.mapreduce.Mapper; import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat; import java.io.IOException;
+public class RecordCount {
+public static class MapperClass extends Mapper<Object, Text, Text, IntWritable>
+{
+private IntWritable count=new IntWritable(); private Text s= new Text();
+private int cou=0;
+@Override
+public void map(Object key,Text value, Context context)throws IOException, InterruptedException
+{
+cou++;
+}
+@Override
+protected void cleanup(Context context)throws IOException, InterruptedException
+{
+s.set("count"); count.set(cou); context.write(s,count);
+}
+Big Data Analytics 18MCA52
+6
+}
+public static class ReducerClass extends Reducer<Text, IntWritable, Text, IntWritable>
+{
+@Override
+public void reduce(Text key,Iterable<IntWritable>values, Context context) throws IOException, InterruptedException
+{
+for(IntWritable value: values) context.write(key,value);
+}
+}
+public static void main(String[ ] args)throws Exception
+{
+Configuration conf =new Configuration();
+Job job=Job.getInstance(conf, "Record counter"); job.setJarByClass(RecordCount.class); job.setMapperClass(MapperClass.class); job.setCombinerClass(ReducerClass.class); job.setReducerClass(ReducerClass.class); job.setOutputKeyClass(Text.class); job.setOutputValueClass(IntWritable.class); FileInputFormat.addInputPath(job, new Path(args[0])); FileOutputFormat.setOutputPath(job, new Path(args[1])); System.exit(job.waitForCompletion(true) ? 0 : 1);
+}
+}
+Step 4 – Open pom.xml and add the following dependencies.
+<!-- https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-common -->
+<dependency>
+<groupId>org.apache.hadoop</groupId>
+<artifactId>hadoop-common</artifactId>
+<version>3.2.1</version>
+Big Data Analytics 18MCA52
+7
+</dependency>
+<!-- https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-client -->
+<dependency>
+<groupId>org.apache.hadoop</groupId>
+<artifactId>hadoop-client</artifactId>
+<version>3.2.1</version>
+</dependency>
+
+
+Second one
+package ajith.tmax;
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable; import org.apache.hadoop.io.LongWritable; import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+public class MaxTempMapper extends Mapper<LongWritable, Text, Text, IntWritable> {
+private static final int MISSING = 9999; @Override
+public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+String line = value.toString(); String year = line.substring(15, 19); int airTemperature;
+if (line.charAt(87) == '+') {
+airTemperature = Integer.parseInt(line.substring(88, 92));
+} else {
+}
+airTemperature = Integer.parseInt(line.substring(87, 92));
+String quality = line.substring(92, 93);
+if (airTemperature != MISSING && quality.matches("[01459]")) { context.write(new Text(year), new IntWritable(airTemperature));
+}
+}
+MaxTempReducer.java
+package ajith.tmax;
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+public class MaxTempReducer extends Reducer<Text, IntWritable, Text, IntWritable> { @Override
+public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
+int maxValue = Integer.MIN_VALUE;
+for (IntWritable value : values) {
+maxValue = Math.max(maxValue, value.get());
+}
+context.write(key, new IntWritable(maxValue));
+}
+}
+MaxTemp.java
+package ajith.tmax;
+import org.apache.hadoop.fs.Path; import org.apache.hadoop.io.IntWritable; import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat; import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat; public class MaxTemp {
+public static void main(String[] args) throws Exception {
+if (args.length != 2) {
+System.err.println("Usage: MaxTemperature <input path> <output path>"); System.exit(-1);
+}
+Job job = new Job(); job.setJarByClass(MaxTemp.class); job.setJobName("Max temperature"); FileInputFormat.addInputPath(job, new Path(args[0]));
+FileOutputFormat.setOutputPath(job, new Path(args[1])); job.setMapperClass(MaxTempMapper.class); job.setReducerClass(MaxTempReducer.class); job.setOutputKeyClass(Text.class); job.setOutputValueClass(IntWritable.class); System.exit(job.waitForCompletion(true) ? 0 : 1);
+}
+}
+Step 4 – Open pom.xml and add the following dependencies.
+<!-- https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-common -->
+<dependency>
+<groupId>org.apache.hadoop</groupId>
+<artifactId>hadoop-common</artifactId>
+<version>3.2.1</version>
+</dependency>
+<!-- https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-client -->
+<dependency>
+<groupId>org.apache.hadoop</groupId>
+<artifactId>hadoop-client</artifactId>
+<version>3.2.1</version>
+</dependency>
